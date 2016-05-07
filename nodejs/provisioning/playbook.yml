@@ -1,11 +1,26 @@
 ---
 - hosts: all
+  become: yes
 
   vars:
     # Vars can also be passed in via CLI with `--extra-vars="name=value"`.
     node_apps_location: /usr/local/opt/node
 
   tasks:
+    - name: Install EPEL repo.
+      yum:
+        name: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
+        state: present
+      register: result
+      until: '"failed" not in result'
+      retries: 5
+      delay: 10
+
+    - name: Import EPEL GPG key.
+      rpm_key:
+        key: "/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}"
+        state: present
+
     - name: Import Remi GPG key.
       rpm_key: "key={{ item }} state=present"
       with_items:
@@ -14,11 +29,8 @@
     - name: Install Remi repo.
       command: "rpm -Uvh --force {{ item.href }} creates={{ item.creates }}"
       with_items:
-        - href: "http://rpms.famillecollet.com/enterprise/remi-release-6.rpm"
+        - href: "http://rpms.famillecollet.com/enterprise/remi-release-7.rpm"
           creates: "/etc/yum.repos.d/remi.repo"
-
-    - name: Install EPEL repo.
-      yum: name=epel-release state=present
 
     - name: Ensure firewalld is stopped (since this is a test server).
       service: name=firewalld state=stopped
